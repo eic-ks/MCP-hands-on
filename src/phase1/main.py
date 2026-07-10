@@ -1,74 +1,81 @@
 import os
-
+import json
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
-
+from openai import OpenAI
 from tools import get_current_time
 
 load_dotenv()
 
-MODEL = "gemini-flash-latest"
+MODEL = "gemma-4-31b-it"
 
-# ローカル関数名 -> 実体 のマッピング（Gemini から関数名で呼ばれたときに引く）
+# Gemini APIのキーを使って、OpenAIクライアントを初期化
+# base_urlをGemini APIのOpenAI互換エンドポイントに向ける
+client = OpenAI(
+    api_key=os.environ["GEMINI_API_KEY"],
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+)
+
 LOCAL_FUNCTIONS = {
     "get_current_time": get_current_time,
 }
 
-TOOLS = types.Tool(
-    function_declarations=[
-        types.FunctionDeclaration(
-            name="get_current_time",
-            description="現在の日時を取得する。",
-        ),
-    ]
-)
-
-CONFIG = types.GenerateContentConfig(tools=[TOOLS])
-
-
-def call_local_function(function_call: types.FunctionCall) -> types.Part:
-    func = LOCAL_FUNCTIONS[function_call.name]
-    result = func()
-    return types.Part.from_function_response(
-        name=function_call.name,
-        response={"result": result},
-    )
-
+# OpenAIフォーマットでのツール定義
+TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_current_time",
+            "description": "現在の日時を取得する。"
+        }
+    }
+]
 
 def main():
-    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-    contents: list[types.Content] = []
-
-    print("Gemini Tool Use デモ（終了するには exit）")
+    messages = []
+    print("Gemma 4 Tool Use デモ（終了するには exit）")
+    
     while True:
         user_input = input("あなた: ")
         if user_input.strip() in ("exit", "quit"):
             break
 
-        contents.append(types.Content(role="user", parts=[types.Part(text=user_input)]))
+        messages.append({"role": "user", "content": user_input})
 
         while True:
-            response = client.models.generate_content(
+            response = client.chat.completions.create(
                 model=MODEL,
-                contents=contents,
-                config=CONFIG,
+                messages=messages,
+                tools=TOOLS,
             )
-            model_content = response.candidates[0].content
-            contents.append(model_content)
+            
+            message = response.choices[0].message
+            messages.append(message)
 
-            function_calls = [
-                part.function_call for part in model_content.parts if part.function_call
-            ]
-            if not function_calls:
-                print(f"Gemini: {response.text}")
+            # ツール呼び出しがない場合は回答を表示して終了
+            if not message.tool_calls:
+                print(f"Gemma: {message.content}")
                 break
 
-            function_response_parts = [
-                call_local_function(function_call) for function_call in function_calls
-            ]
-            contents.append(types.Content(role="user", parts=function_response_parts))
+            # ツール呼び出しがある場合の処理
+            for tool_call in message.tool_calls:
+                func_name = tool_call.function.name
+                
+                # 引数がある場合はパースする
+                args = json.loads(tool_call.function.arguments) if tool_call.function.arguments else {}
+                
+                func = LOCAL_FUNCTIONS.get(func_name)
+                if func:
+                    result = func(**args)
+                else:
+                    result = f"Error: Function {func_name} not found"
 
+                # 実行結果をメッセージ履歴に追加
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "name": func_name,
+                    "content": str(result)
+                })
 
 if __name__ == "__main__":
     main()

@@ -54,3 +54,6 @@
 - レスポンス側でGeminiが「この関数をこの引数で呼びたい」と返してきた内容を表す型（`part.function_call`）。`name` と `args` を持ち、ローカル関数を実引数で呼び出すために使う。
 5. types.Part
 - JSON中の `parts` 配列の要素に対応。テキスト（`text`）や関数呼び出し（`function_call`）、関数の実行結果（`from_function_response` で作る）など、メッセージの中身1つ分を表す最小単位。
+
+# オープンモデルのエコシステム
+- オープンモデルのエコシステムはOpenAIのAPIフォーマットがデファクトスタンダードなので、JSON形式はGeminiシリーズと異なり、typesなどは使えない。素朴にJSONを書く
