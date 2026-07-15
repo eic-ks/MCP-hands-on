@@ -15,7 +15,7 @@ from utils.tools import get_current_time
 load_dotenv()
 
 # google.genaiがサポートするモデルはGeminiシリーズのみで現時点ではオープンモデル非対応
-MODEL = "gemma-4-31b-it"
+MODEL = "gemini-2.5-flash-lite"
 
 # ローカル関数名 -> 実体 のマッピング（Gemini から関数名で呼ばれたときに引く）
 LOCAL_FUNCTIONS = {

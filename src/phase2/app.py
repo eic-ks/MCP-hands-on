@@ -2,6 +2,7 @@ import streamlit as st
 
 import atexit
 import sys
+import re
 from pathlib import Path
 
 
@@ -14,6 +15,20 @@ from client import McpSession
 
 def get_role(message) -> str:
     return message["role"] if isinstance(message, dict) else message.role
+
+def format_content(content: str, raw: bool) -> str:
+    if raw:
+        return content
+
+    # 必要に応じてフィルタを追加
+    content = re.sub(
+        r"<thought>.*?</thought>",
+        "",
+        content,
+        flags=re.DOTALL,
+    )
+
+    return content.strip()
 
 
 def render_message(message) -> None:
@@ -29,11 +44,17 @@ def render_message(message) -> None:
     if not content:
         return
     with st.chat_message(role):
-        st.markdown(content)
+        formatted = format_content(content, raw=False)
+        st.text(formatted)
+
+        if formatted != content:
+            with st.expander("生のLLM出力"):
+                st.text(content)
 
 
 st.set_page_config(page_title="Gemma Tool Use デモ")
 st.title("Gemma Tool Use デモ")
+
 
 if "client" not in st.session_state:
     st.session_state.client = create_client()

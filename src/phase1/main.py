@@ -1,3 +1,4 @@
+# phase1のCLIベースでやり取りするバージョン
 import sys
 from pathlib import Path
 

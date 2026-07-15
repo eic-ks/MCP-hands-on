@@ -11,10 +11,8 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.types import Tool as MCPTool
 
-from utils.llm_client import create_client
 
 SERVER_SCRIPT = str(Path(__file__).parent / "server.py")
-
 
 def mcp_tools_to_openai_schema(tools: list[MCPTool]) -> list[dict]:
     """tools/listで取得したMCPのTool定義を、OpenAIのFunction Callingスキーマへ変換する。
@@ -35,6 +33,7 @@ def mcp_tools_to_openai_schema(tools: list[MCPTool]) -> list[dict]:
 async def call_mcp_tool(session: ClientSession, name: str, arguments: str) -> str:
     """LLMからのFunction Call引数を、MCPサーバーへのtools/callに変換して実行する。"""
     args = json.loads(arguments) if arguments else {}
+    # ここでMCPサーバーへ関数実行をリクエスト
     result = await session.call_tool(name, args)
     return "\n".join(block.text for block in result.content if hasattr(block, "text"))
 
@@ -89,35 +88,3 @@ class McpSession:
             self._loop.call_soon_threadsafe(self._stop_event.set)
         self._thread.join(timeout=5)
         self._loop.close()
-
-
-async def main():
-    from agent import run_turn  # agentとの循環インポートを避けるため呼び出し時に遅延インポート
-
-    client = create_client()
-    params = StdioServerParameters(command=sys.executable, args=[SERVER_SCRIPT])
-
-    async with stdio_client(params) as (read, write):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-
-            # Tool Discovery: サーバーが公開するTool一覧を取得し、その場でスキーマに変換する（手書きしない）
-            tools_result = await session.list_tools()
-            tools = mcp_tools_to_openai_schema(tools_result.tools)
-
-            messages: list = []
-            print("Gemma Tool Use デモ（スキーマ・実行ともMCPサーバー経由・終了するには exit）")
-
-            while True:
-                user_input = input("あなた: ")
-                if user_input.strip() in ("exit", "quit"):
-                    break
-
-                messages.append({"role": "user", "content": user_input})
-                await run_turn(session, client, tools, messages)
-
-                print(f"Gemma: {messages[-1].content}")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

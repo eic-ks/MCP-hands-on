@@ -20,7 +20,7 @@ def run_turn(client, messages, MaxToolUse=3):
 
 Phase2ではMCPサーバー・MCPクライアントを挟むことで、3つの責務が別々のファイルに分かれた。
 
-- **server.py（MCPサーバー）**: ツールの実装を持ち、MCPプロトコルで公開する（`mcp.tool()(get_current_time)`）。関数のシグネチャ・docstringからスキーマが自動生成されるため、手書きの`TOOLS`が不要になった。
+- **server.py（MCPサーバー）**: ツールの実装を持ち、MCPプロトコルで公開する（`mcp.tool()(get_current_time)`）。関数のシグネチャ・docstringからスキーマが自動生成されるため、**手書きの`TOOLS`が不要になった。**
 - **client.py（MCPクライアント）**: サーバーとの接続管理、Tool Discovery（`list_tools()` → `mcp_tools_to_openai_schema()`でOpenAI形式へ変換）、ツール実行の変換（`call_mcp_tool`: LLMの関数呼び出し引数を`session.call_tool()`に渡し、結果をテキストに戻す）を担当。「MCPの配線」を知っているのはここだけ。
 - **agent.py（Agent）**: LLMの応答を見て「ツールを呼ぶか、最終回答を返すか」だけを判断する。ツールの実装がローカル関数なのかMCPサーバー経由なのかは知らず、実行は外から渡された`call_mcp_tool`に委譲する。
 
@@ -37,6 +37,37 @@ async def run_turn(session, client, tools, messages, max_tool_use=3):
 つまりMCP導入によって、agentは「ツール実行の詳細（ローカル関数か、別プロセスのMCPサーバーか）」から切り離され、ツール利用の意思決定ロジックだけを持つ薄い層になった。ツールのスキーマも、agentが手書きするものから、MCPサーバーが公開する情報を都度取得する形に変わった（Single Source of Truthがコード上の定数からMCPサーバー自身に移った）。
 
 副次的な変化として、ツール実行がstdio経由の別プロセス呼び出しになったため`run_turn`は同期関数から非同期関数（`async def`）になり、呼び出し側も`ClientSession`と（一度だけDiscoveryした）`tools`スキーマを渡す必要が生じた。
+
+### Tool Schemaの自動作成について
+- descriptionは流石に自動生成ではない。
+
+```python
+# 書き方はいくつかある
+
+# phase2/server.py
+mcp.tool()(get_current_time)
+# utils/tools.py
+def get_current_time() -> str:
+    """現在の日時を取得する。"""　#ここが読み取られてdescriptionになる
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+# phase2/server.py
+mcp.tool(description="現在の日時を取得する。")(get_current_time)#直接指定も可能
+
+
+# phase2/server.py
+@mcp.tool
+def get_current_time() -> str:
+    """現在の日時を取得する。"""　#ここが読み取られてdescriptionになる
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+# server.py内に関数定義を記述し、mcp.tool()()を使わずにデコレータを使用して登録する方法もある
+```
+
+### MCP Inspector
+- ブラウザからGUIでMCPサーバー単体で機能を試せる
+```bash
+uv run mcp dev src/phase2/server.py
+```
 
 ### 循環インポートの回避
 `agent.py`は`client.py`の`call_mcp_tool`をトップレベルでインポートする。逆に`client.py`は`agent.py`の`run_turn`を、実際に呼び出す関数（`McpSession.run_turn`やCLIの`main()`）の中で遅延インポートしている。これは、その時点で両モジュールのロードが完了しているため、モジュールロード時の循環参照を避けられるため。

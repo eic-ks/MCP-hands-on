@@ -28,7 +28,7 @@ def render_message(message) -> None:
     if not content:
         return
     with st.chat_message(role):
-        st.markdown(content)
+        st.text(content)
 
 
 st.set_page_config(page_title="Gemma Tool Use デモ")
