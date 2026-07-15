@@ -2,8 +2,8 @@ import json
 
 from openai import OpenAI
 
-from llm_client import MODEL
-from tools import LOCAL_FUNCTIONS, TOOLS
+from .llm_client import MODEL
+from .tools import LOCAL_FUNCTIONS, TOOLS
 
 
 def call_local_function(name: str, arguments: str) -> str:
@@ -14,9 +14,9 @@ def call_local_function(name: str, arguments: str) -> str:
     return str(func(**args))
 
 
-def run_turn(client: OpenAI, messages: list) -> None:
+def run_turn(client: OpenAI, messages: list, MaxToolUse: int = 3) -> None:
     """最終回答が出るまでツール呼び出しを繰り返し、messagesに追記する。UIには依存しない。"""
-    while True:
+    while MaxToolUse > 0:
         response = client.chat.completions.create(
             model=MODEL,
             messages=messages,
@@ -40,3 +40,5 @@ def run_turn(client: OpenAI, messages: list) -> None:
                     "content": result,
                 }
             )
+        
+        MaxToolUse -= 1

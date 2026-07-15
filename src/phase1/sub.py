@@ -4,7 +4,13 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-from tools import get_current_time
+import sys
+from pathlib import Path
+
+# 親ディレクトリ（src）を検索パスに追加
+sys.path.append(str(Path(__file__).parent.parent))
+
+from utils.tools import get_current_time
 
 load_dotenv()
 

@@ -1,7 +1,12 @@
 import streamlit as st
 
-from agent import run_turn
-from llm_client import create_client
+import sys
+from pathlib import Path
+
+# 親ディレクトリ（src）を検索パスに追加
+sys.path.append(str(Path(__file__).parent.parent))
+
+from utils import run_turn, create_client
 
 
 def get_role(message) -> str:
