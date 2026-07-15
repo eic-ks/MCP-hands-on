@@ -1,9 +1,14 @@
 import json
 
 from openai import OpenAI
+import sys
+from pathlib import Path
 
-from .llm_client import MODEL
-from .tools import LOCAL_FUNCTIONS, TOOLS
+# 親ディレクトリ（src）を検索パスに追加
+sys.path.append(str(Path(__file__).parent.parent))
+
+from utils.llm_client import MODEL
+from utils.tools import LOCAL_FUNCTIONS, TOOLS
 
 
 def call_local_function(name: str, arguments: str) -> str:

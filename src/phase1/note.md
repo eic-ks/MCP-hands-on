@@ -1,4 +1,4 @@
-# プロジェクトを通じた学び
+# フェーズを通じた学び
 
 ## load_dotenv()
 - Parse a .env file and then load all the variables found as environment variables.

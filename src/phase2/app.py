@@ -1,5 +1,6 @@
 import streamlit as st
 
+import atexit
 import sys
 from pathlib import Path
 
@@ -8,7 +9,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from utils import create_client
-from agent import run_turn
+from client import McpSession
 
 
 def get_role(message) -> str:
@@ -38,6 +39,11 @@ if "client" not in st.session_state:
     st.session_state.client = create_client()
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "mcp" not in st.session_state:
+    # MCPセッション(子プロセス+ハンドシェイク)を初回だけ確立し、以後のrerunで使い回す
+    st.session_state.mcp = McpSession()
+    # プロセス終了時にサーバー子プロセスも含めてクローズする
+    atexit.register(st.session_state.mcp.close)
 
 for message in st.session_state.messages:
     render_message(message)
@@ -50,7 +56,7 @@ if user_input:
 
     new_message_start = len(st.session_state.messages)
     with st.spinner("考え中..."):
-        run_turn(st.session_state.client, st.session_state.messages)
+        st.session_state.mcp.run_turn(st.session_state.client, st.session_state.messages)
 
     for message in st.session_state.messages[new_message_start:]:
         render_message(message)

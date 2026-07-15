@@ -11,7 +11,7 @@ LOCAL_FUNCTIONS = {
     "get_current_time": get_current_time,
 }
 
-# OpenAIフォーマットでのツール定義
+# OpenAIフォーマットでのツール定義(Tool Schema)
 TOOLS = [
     {
         "type": "function",

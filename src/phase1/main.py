@@ -4,8 +4,8 @@ from pathlib import Path
 # 親ディレクトリ（src）を検索パスに追加
 sys.path.append(str(Path(__file__).parent.parent))
 
-from utils import run_turn, create_client
-
+from utils import create_client
+from agent import run_turn
 
 def main():
     client = create_client()
